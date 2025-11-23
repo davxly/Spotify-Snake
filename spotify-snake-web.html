@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spotify Snake - Web Playback SDK</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #121212;
+            font-family: 'Arial', sans-serif;
+            color: white;
+            touch-action: none;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .box {
+            background: #181818;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            width: 85%;
+            max-width: 400px;
+            border: 1px solid #282828;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        h2 {
+            margin: 0 0 20px 0;
+            color: #1db954;
+        }
+
+        p {
+            color: #b3b3b3;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: #333;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: #1db954;
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            background: #535353;
+            cursor: not-allowed;
+        }
+
+        #spotify-player {
+            width: 100%;
+            height: 120px;
+            background: #181818;
+            border-bottom: 1px solid #282828;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 2;
+            position: relative;
+        }
+
+        #player-controls {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            gap: 15px;
+        }
+
+        #track-info {
+            flex: 1;
+            margin-left: 15px;
+        }
+
+        #track-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #track-artist {
+            font-size: 14px;
+            color: #b3b3b3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #player-buttons {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .player-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .player-btn:hover {
+            color: #1db954;
+        }
+
+        #album-art {
+            width: 80px;
+            height: 80px;
+            border-radius: 5px;
+            background: #333;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        #album-art img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #game-ui {
+            position: absolute;
+            top: 120px;
+            left: 0;
+            width: 100%;
+            padding: 15px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px black;
+            z-index: 5;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
+        }
+
+        #score {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        #now-playing {
+            font-size: 14px;
+            text-align: right;
+            opacity: 0.9;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            top: 120px;
+            left: 0;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #535353;
+            margin-top: 5px;
+        }
+
+        .error {
+            color: #e91e63;
+            margin-top: 10px;
+        }
+
+        .success {
+            color: #1db954;
+            margin-top: 10px;
+        }
+
+        #player-status {
+            font-size: 12px;
+            color: #b3b3b3;
+            margin-top: 5px;
+        }
+
+        #auth-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #282828;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="login-screen" class="screen">
+        <div class="box">
+            <h2>Spotify Snake</h2>
+            <p>Configuración para Spotify Premium</p>
+
+            <div id="auth-section">
+                <p style="font-size: 12px; margin: 0 0 10px 0; color: #b3b3b5;">
+                    Para usar el Web Playback SDK necesitas autenticarte con Spotify Premium.
+                </p>
+                <button onclick="initAuth()" id="auth-btn">Autenticar con Spotify</button>
+            </div>
+
+            <input id="playlistId" placeholder="Link de Playlist de Spotify"
+                value="https://open.spotify.com/playlist/2sA8F8VAIq71aya3SfqVWL">
+            <div class="help-text">Ejemplo: https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M</div>
+
+            <button onclick="loadPlaylist()" id="load-btn" disabled>Cargar Playlist</button>
+            <p id="status-msg" class="error" style="margin-top:10px;"></p>
+
+            <div style="margin-top: 20px; padding: 15px; background: #282828; border-radius: 8px;">
+                <p style="font-size: 12px; margin: 0; color: #b3b3b5;">
+                    <strong>Requisitos:</strong><br>
+                    - Cuenta de Spotify Premium (obligatorio)<br>
+                    - Playlist pública de Spotify
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div id="gameover-screen" class="screen hidden">
+        <div class="box">
+            <h2 style="color: white;">¡Perdiste!</h2>
+            <p id="final-score" style="font-size: 18px; color: #1db954; margin-bottom: 20px;"></p>
+            <button onclick="restartGame()">Jugar de Nuevo</button>
+        </div>
+    </div>
+
+    <!-- Reproductor de Spotify -->
+    <div id="spotify-player" class="hidden">
+        <div id="player-controls">
+            <div id="album-art">
+                <img id="album-img"
+                    src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjMzMzIi8+CjxwYXRoIGQ9Ik01MCA0MEM1MCA0NC40MTgzIDQ2LjQxODMgNDggNDIgNDhDMzcuNTgxNyA0OCAzNCA0NC40MTgzIDM0IDQwQzM0IDM1LjU4MTcgMzcuNTgxNyAzMiA0MiAzMkM0Ni40MTgzIDMyIDUwIDM1LjU4MTcgNTAgNDBaIiBmaWxsPSIjMURCOTU1Ii8+CjxwYXRoIGQ9Ik0zOCA0MEw0NiAzNkw0NiA0NEwzOCA0MFoiIGZpbGw9IiMxMjEyMTIiLz4KPC9zdmc+"
+                    alt="Album Art">
+            </div>
+            <div id="track-info">
+                <div id="track-name">Spotify Snake Game</div>
+                <div id="track-artist">Autentica con Spotify Premium</div>
+                <div id="player-status">Esperando autenticación...</div>
+            </div>
+            <div id="player-buttons">
+                <button class="player-btn" id="prev-btn" title="Anterior">⏮</button>
+                <button class="player-btn" id="play-btn" title="Reproducir">▶</button>
+                <button class="player-btn" id="next-btn" title="Siguiente">⏭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-ui" class="hidden">
+        <div id="score">Puntos: 0</div>
+        <div id="now-playing">Objetivo: <br>...</div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <!-- Spotify Web Playback SDK -->
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+
+    <script>
+        // Configuración de la aplicación
+        const CLIENT_ID = 'TU_CLIENT_ID_AQUI';  // ¡Reemplaza con tu Client ID de Spotify Dashboard!
+        const REDIRECT_URI = window.location.origin + '/';  // URI dinámico para hosting público
+        const SCOPES = [
+            'streaming',
+            'user-read-email',
+            'user-read-private',
+            'user-read-playback-state',
+            'user-modify-playback-state',
+            'user-read-currently-playing'
+        ].join('%20');
+
+        // Elementos del DOM
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const loginScreen = document.getElementById('login-screen');
+        const gameOverScreen = document.getElementById('gameover-screen');
+        const gameUi = document.getElementById('game-ui');
+        const spotifyPlayer = document.getElementById('spotify-player');
+        const statusMsg = document.getElementById('status-msg');
+        const scoreEl = document.getElementById('score');
+        const nowPlayingEl = document.getElementById('now-playing');
+        const finalScoreEl = document.getElementById('final-score');
+        const loadBtn = document.getElementById('load-btn');
+        const authBtn = document.getElementById('auth-btn');
+
+        // Elementos del reproductor
+        const albumImg = document.getElementById('album-img');
+        const trackName = document.getElementById('track-name');
+        const trackArtist = document.getElementById('track-artist');
+        const playerStatus = document.getElementById('player-status');
+        const playBtn = document.getElementById('play-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+
+        // Variables de estado
+        let TILE = 0;
+        let cols = 0, rows = 0;
+        let speed = 150;
+        let lastUpdateTime = 0;
+        let isPlaying = false;
+
+        // Estado del juego
+        let snake = [];
+        let prevSnake = [];
+        let food = {};
+        let dx = 1, dy = 0;
+        let nextDx = 1, nextDy = 0;
+        let currentHeadTrackId = 0;
+        let score = 0;
+
+        // Spotify
+        let tracks = [];
+        let player;
+        let isPlayerReady = false;
+        let deviceId;
+        let accessToken;
+
+        // --- 1. INICIALIZACIÓN Y AUTENTICACIÓN ---
+        function initAuth() {
+            // Redirigir a la página de autorización de Spotify
+            const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPES}&show_dialog=true`;
+            window.location.href = authUrl;
+        }
+
+        // Verificar si hay un token en la URL (después de la redirección)
+        function checkForAuthToken() {
+            const hash = window.location.hash.substring(1);
+            const params = new URLSearchParams(hash);
+
+            if (params.has('access_token')) {
+                accessToken = params.get('access_token');
+                localStorage.setItem('spotify_access_token', accessToken);
+
+                // Limpiar la URL
+                window.location.hash = '';
+
+                // Actualizar UI
+                authBtn.textContent = 'Autenticado ✓';
+                authBtn.disabled = true;
+                loadBtn.disabled = false;
+                statusMsg.textContent = '¡Autenticación exitosa! Ahora carga tu playlist.';
+                statusMsg.className = 'success';
+            } else {
+                // Verificar si hay un token guardado
+                const savedToken = localStorage.getItem('spotify_access_token');
+                if (savedToken) {
+                    accessToken = savedToken;
+                    authBtn.textContent = 'Autenticado ✓';
+                    authBtn.disabled = true;
+                    loadBtn.disabled = false;
+                    statusMsg.textContent = 'Token recuperado. Carga tu playlist.';
+                    statusMsg.className = 'success';
+                }
+            }
+        }
+
+        // Llamar esta función al cargar la página
+        window.addEventListener('load', checkForAuthToken);
+
+        // --- 2. CARGA DE PLAYLIST ---
+        async function loadPlaylist() {
+            if (!accessToken) {
+                statusMsg.textContent = 'Primero debes autenticarte con Spotify.';
+                return;
+            }
+
+            let pid = document.getElementById('playlistId').value.trim();
+
+            // Extraer ID de playlist
+            if (pid.includes('spotify.com/playlist/')) {
+                pid = pid.split('spotify.com/playlist/')[1].split('?')[0];
+            } else if (pid.includes('playlist/')) {
+                pid = pid.split('playlist/')[1].split('?')[0];
+            }
+
+            loadBtn.disabled = true;
+            loadBtn.textContent = "Cargando...";
+            statusMsg.textContent = "Cargando playlist...";
+
+            try {
+                // Obtener datos de la playlist
+                const plRes = await fetch(`https://api.spotify.com/v1/playlists/${pid}`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!plRes.ok) {
+                    if (plRes.status === 401) {
+                        throw new Error("Token expirado. Vuelve a autenticarte.");
+                    }
+                    throw new Error("Playlist no encontrada o no accesible.");
+                }
+
+                const data = await plRes.json();
+                const rawTracks = data.tracks.items.map(i => i.track).filter(t => t && t.album.images.length > 0);
+
+                if (rawTracks.length < 5) throw new Error("Playlist muy corta (necesitas al menos 5 tracks con imágenes).");
+
+                // Procesar tracks
+                statusMsg.textContent = "Preparando canciones...";
+                tracks = [];
+
+                for (let i = 0; i < Math.min(rawTracks.length, 20); i++) {
+                    const t = rawTracks[i];
+                    const img = new Image();
+                    img.crossOrigin = "anonymous";
+                    img.src = t.album.images[0].url;
+
+                    await new Promise((resolve) => {
+                        img.onload = resolve;
+                        img.onerror = () => {
+                            console.warn(`Error cargando imagen para ${t.name}`);
+                            resolve();  // Continúa aunque falle
+                        };
+                    });
+
+                    tracks.push({
+                        name: t.name,
+                        artist: t.artists[0].name,
+                        uri: t.uri,
+                        imgObj: img
+                    });
+                }
+
+                // Inicializar Web Playback SDK
+                statusMsg.textContent = "Inicializando reproductor...";
+                initWebPlaybackSDK();
+
+            } catch (e) {
+                statusMsg.textContent = e.message;
+                statusMsg.className = 'error';
+                loadBtn.disabled = false;
+                loadBtn.textContent = "Cargar Playlist";
+            }
+        }
+
+        // --- 3. WEB PLAYBACK SDK ---
+        function initWebPlaybackSDK() {
+            if (!window.Spotify) {
+                statusMsg.textContent = "Error: Spotify SDK no cargado";
+                statusMsg.className = 'error';
+                return;
+            }
+
+            player = new Spotify.Player({
+                name: 'Spotify Snake Game',
+                getOAuthToken: cb => { cb(accessToken); },
+                volume: 0.6
+            });
+
+            // Ready
+            player.addListener('ready', ({ device_id }) => {
+                console.log('Reproductor listo con Device ID:', device_id);
+                deviceId = device_id;
+                isPlayerReady = true;
+                playerStatus.textContent = "Conectado ✓";
+
+                // Transferir reproducción a nuestro dispositivo
+                transferPlayback(device_id);
+            });
+
+            // Not Ready
+            player.addListener('not_ready', ({ device_id }) => {
+                console.log('Device ID desconectado', device_id);
+                isPlayerReady = false;
+                playerStatus.textContent = "Desconectado";
+            });
+
+            // Estado del reproductor cambiado
+            player.addListener('player_state_changed', state => {
+                if (!state) return;
+                updatePlayerUI(state);
+                updatePlayButton(state.paused);
+            });
+
+            // Manejo de errores
+            player.addListener('initialization_error', ({ message }) => {
+                console.error('Error de inicialización:', message);
+                statusMsg.textContent = "Error de inicialización: " + message;
+                statusMsg.className = 'error';
+            });
+
+            player.addListener('authentication_error', ({ message }) => {
+                console.error('Error de autenticación:', message);
+                statusMsg.textContent = "Error de autenticación. Vuelve a autenticarte.";
+                statusMsg.className = 'error';
+                localStorage.removeItem('spotify_access_token');
+            });
+
+            player.addListener('account_error', ({ message }) => {
+                console.error('Error de cuenta:', message);
+                statusMsg.textContent = "Error de cuenta. ¿Tienes Spotify Premium?";
+                statusMsg.className = 'error';
+            });
+
+            // Conectar
+            player.connect();
+        }
+
+        function transferPlayback(deviceId) {
+            fetch(`https://api.spotify.com/v1/me/player`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    device_ids: [deviceId],
+                    play: false
+                })
+            }).then(response => {
+                if (!response.ok) throw new Error('Error en transferencia');
+                console.log("Reproducción transferida");
+                statusMsg.textContent = "¡Listo! Iniciando juego...";
+                statusMsg.className = "success";
+
+                setTimeout(() => {
+                    loginScreen.classList.add('hidden');
+                    spotifyPlayer.classList.remove('hidden');
+                    restartGame();
+                }, 1000);
+            }).catch(error => {
+                console.error("Error transfiriendo reproducción:", error);
+                statusMsg.textContent = "Error transfiriendo reproducción: " + error.message;
+                statusMsg.className = 'error';
+            });
+        }
+
+        function updatePlayerUI(state) {
+            const { track_window } = state;
+            if (!track_window.current_track) return;
+
+            const currentTrack = track_window.current_track;
+            albumImg.src = currentTrack.album.images[0].url;
+            trackName.textContent = currentTrack.name;
+            trackArtist.textContent = currentTrack.artists.map(a => a.name).join(', ');
+        }
+
+        function updatePlayButton(paused) {
+            playBtn.textContent = paused ? "▶" : "⏸";
+        }
+
+        // --- 4. CONTROLADORES DEL REPRODUCTOR ---
+        playBtn.addEventListener('click', () => {
+            if (!isPlayerReady) return;
+            player.togglePlay();
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (!isPlayerReady) return;
+            player.previousTrack();
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (!isPlayerReady) return;
+            player.nextTrack();
+        });
+
+        // --- 5. REPRODUCIR CANCIÓN ESPECÍFICA ---
+        function playTrack(trackIndex) {
+            if (!isPlayerReady || !deviceId) {
+                console.log("Reproductor no listo");
+                return;
+            }
+
+            const track = tracks[trackIndex];
+            if (!track) return;
+
+            fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    uris: [track.uri],
+                    position_ms: 0
+                })
+            }).then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                console.log("Reproduciendo:", track.name);
+
+                // Actualizar UI inmediatamente
+                albumImg.src = track.imgObj.src;
+                trackName.textContent = track.name;
+                trackArtist.textContent = track.artist;
+                playBtn.textContent = "⏸";
+            }).catch(error => {
+                console.error("Error reproduciendo track:", error);
+                playerStatus.textContent = "Error reproduciendo: " + error.message;
+            });
+        }
+
+        // --- 6. MOTOR DEL JUEGO ---
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 120;
+
+            const targetSize = window.innerWidth < 600 ? 35 : 50;
+            cols = Math.floor(canvas.width / targetSize);
+            TILE = canvas.width / cols;
+            rows = Math.floor(canvas.height / TILE);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function restartGame() {
+            gameOverScreen.classList.add('hidden');
+            gameUi.classList.remove('hidden');
+            resize();
+
+            snake = [];
+            prevSnake = [];
+            score = 0;
+            dx = 1; dy = 0;
+            nextDx = 1; nextDy = 0;
+            scoreEl.textContent = "Puntos: 0";
+            lastUpdateTime = performance.now();
+
+            const startX = Math.floor(cols / 2);
+            const startY = Math.floor(rows / 2);
+            currentHeadTrackId = Math.floor(Math.random() * tracks.length);
+
+            // Crear cuerpo inicial
+            for (let i = 0; i < 3; i++) {
+                const seg = { x: startX - i, y: startY, trackId: currentHeadTrackId };
+                snake.push(seg);
+                prevSnake.push({ ...seg });
+            }
+
+            spawnFood();
+            isPlaying = true;
+
+            // Reproducir canción inicial
+            playTrack(currentHeadTrackId);
+
+            requestAnimationFrame(loop);
+        }
+
+        function spawnFood() {
+            let valid = false;
+            while (!valid) {
+                food = {
+                    x: Math.floor(Math.random() * cols),
+                    y: Math.floor(Math.random() * rows),
+                    trackId: Math.floor(Math.random() * tracks.length)
+                };
+                valid = !snake.some(s => s.x === food.x && s.y === food.y);
+            }
+            const t = tracks[food.trackId];
+            nowPlayingEl.innerHTML = `Objetivo:<br><strong>${t.name}</strong><br>${t.artist}`;
+        }
+
+        function loop(timestamp) {
+            if (!isPlaying) return;
+
+            if (timestamp - lastUpdateTime > speed) {
+                prevSnake = snake.map(s => ({ ...s }));
+                updateLogic();
+                lastUpdateTime = timestamp;
+            }
+
+            const progress = Math.min((timestamp - lastUpdateTime) / speed, 1.0);
+            draw(progress);
+            requestAnimationFrame(loop);
+        }
+
+        function updateLogic() {
+            dx = nextDx;
+            dy = nextDy;
+
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+            if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows) return gameOver();
+            for (let s of snake) if (head.x === s.x && head.y === s.y) return gameOver();
+
+            let newHeadId;
+            let grew = false;
+
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                scoreEl.textContent = "Puntos: " + score;
+                grew = true;
+                newHeadId = food.trackId;
+                currentHeadTrackId = newHeadId;
+
+                // Reproducir la nueva canción cuando se come
+                playTrack(newHeadId);
+                spawnFood();
+            } else {
+                newHeadId = currentHeadTrackId;
+                snake.pop();
+            }
+
+            snake.unshift({ x: head.x, y: head.y, trackId: newHeadId });
+
+            if (grew) {
+                prevSnake.push(prevSnake[prevSnake.length - 1]);
+            }
+        }
+
+        function gameOver() {
+            isPlaying = false;
+            if (isPlayerReady) {
+                player.pause();
+            }
+            finalScoreEl.textContent = `Puntuación Final: ${score}`;
+            gameUi.classList.add('hidden');
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        function lerp(a, b, t) { return a + (b - a) * t; }
+
+        function draw(p) {
+            ctx.fillStyle = "#121212";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Comida
+            const fImg = tracks[food.trackId].imgObj;
+            if (fImg) {
+                ctx.save();
+                ctx.shadowColor = "#1db954";
+                ctx.shadowBlur = 20;
+                const pulse = 1 + Math.sin(Date.now() / 150) * 0.08;
+                const offset = (TILE * (1 - pulse)) / 2;
+                ctx.drawImage(fImg, food.x * TILE + offset, food.y * TILE + offset, TILE * pulse, TILE * pulse);
+                ctx.restore();
+            }
+
+            // Serpiente
+            for (let i = snake.length - 1; i >= 0; i--) {
+                const curr = snake[i];
+                const prev = prevSnake[i] || curr;
+
+                const vX = lerp(prev.x, curr.x, p) * TILE;
+                const vY = lerp(prev.y, curr.y, p) * TILE;
+
+                const img = tracks[curr.trackId].imgObj;
+                if (img) {
+                    ctx.drawImage(img, vX, vY, TILE, TILE);
+                    if (i > 0) {
+                        ctx.fillStyle = "rgba(0,0,0,0.3)";
+                        ctx.fillRect(vX, vY, TILE, TILE);
+                    }
+                }
+            }
+
+            // Flecha
+            if (snake.length > 0) {
+                const currHead = snake[0];
+                const prevHead = prevSnake[0] || currHead;
+
+                const hX = lerp(prevHead.x, currHead.x, p);
+                const hY = lerp(prevHead.y, currHead.y, p);
+
+                drawArrow(hX + dx, hY + dy, dx, dy);
+            }
+        }
+
+        function drawArrow(gridX, gridY, dirX, dirY) {
+            const cx = gridX * TILE + TILE / 2;
+            const cy = gridY * TILE + TILE / 2;
+            const size = TILE * 0.4;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            let angle = 0;
+            if (dirX === 1) angle = 0;
+            if (dirX === -1) angle = Math.PI;
+            if (dirY === 1) angle = Math.PI / 2;
+            if (dirY === -1) angle = -Math.PI / 2;
+            ctx.rotate(angle);
+
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.moveTo(size / 1.5, 0);
+            ctx.lineTo(-size / 2, -size / 2);
+            ctx.lineTo(-size / 2, size / 2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Controles
+        document.addEventListener('keydown', e => {
+            const k = e.key.toLowerCase();
+            const code = e.keyCode;
+
+            if ((k === 'w' || code === 38) && dy === 0) { nextDx = 0; nextDy = -1; }
+            if ((k === 's' || code === 40) && dy === 0) { nextDx = 0; nextDy = 1; }
+            if ((k === 'a' || code === 37) && dx === 0) { nextDx = -1; nextDy = 0; }
+            if ((k === 'd' || code === 39) && dx === 0) { nextDx = 1; nextDy = 0; }
+        });
+
+        let tX, tY;
+        canvas.addEventListener('touchstart', e => { tX = e.touches[0].clientX; tY = e.touches[0].clientY; }, { passive: false });
+        canvas.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+        canvas.addEventListener('touchend', e => {
+            const dX = e.changedTouches[0].clientX - tX;
+            const dY = e.changedTouches[0].clientY - tY;
+            if (Math.abs(dX) > Math.abs(dY)) {
+                if (Math.abs(dX) > 30) {
+                    if (dX > 0 && dx === 0) { nextDx = 1; nextDy = 0; }
+                    else if (dX < 0 && dx === 0) { nextDx = -1; nextDy = 0; }
+                }
+            } else {
+                if (Math.abs(dY) > 30) {
+                    if (dY > 0 && dy === 0) { nextDx = 0; nextDy = 1; }
+                    else if (dY < 0 && dy === 0) { nextDx = 0; nextDy = -1; }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
