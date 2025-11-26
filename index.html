@@ -266,8 +266,7 @@
                 <button onclick="initAuth()" id="auth-btn">Autenticar con Spotify</button>
             </div>
 
-            <input id="playlistId" placeholder="Link de Playlist de Spotify"
-                value="https://open.spotify.com/playlist/2sA8F8VAIq71aya3SfqVWL">
+            <input id="playlistId" placeholder="Link de Playlist de Spotify">
             <div class="help-text">Ejemplo: https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M</div>
 
             <button onclick="loadPlaylist()" id="load-btn" disabled>Cargar Playlist</button>
@@ -351,6 +350,7 @@
         const finalScoreEl = document.getElementById('final-score');
         const loadBtn = document.getElementById('load-btn');
         const authBtn = document.getElementById('auth-btn');
+        const playlistInput = document.getElementById('playlistId');
 
         // Elementos del reproductor
         const albumImg = document.getElementById('album-img');
@@ -388,6 +388,34 @@
         let recentTracks = [];
         let usedTracks = new Set();
         let dominantColors = new Map();
+
+        // --- INICIALIZACIÓN ---
+        function initializeApp() {
+            // Limpiar cualquier token almacenado para forzar autenticación
+            localStorage.removeItem('spotify_access_token');
+            localStorage.removeItem('code_verifier');
+            
+            // Limpiar el campo de playlist
+            playlistInput.value = '';
+            
+            // Resetear estado de la UI
+            authBtn.textContent = 'Autenticar con Spotify';
+            authBtn.disabled = false;
+            loadBtn.disabled = true;
+            statusMsg.textContent = '';
+            
+            // Asegurar que solo se muestre la pantalla de login
+            loginScreen.classList.remove('hidden');
+            gameOverScreen.classList.add('hidden');
+            spotifyPlayer.classList.add('hidden');
+            gameUi.classList.add('hidden');
+            
+            // Resetear color de fondo
+            document.body.style.backgroundColor = "#121212";
+        }
+
+        // Llamar la inicialización cuando se carga la página
+        document.addEventListener('DOMContentLoaded', initializeApp);
 
         // --- FUNCIONES PKCE ---
         function generateRandomString(length) {
@@ -452,10 +480,8 @@
             
             if (code) {
                 await exchangeCodeForToken(code);
-            } else {
-                // Verificar si ya estamos autenticados
-                checkExistingAuth();
             }
+            // No verificamos autenticación existente - siempre forzamos nueva autenticación
         }
 
         // --- INTERCAMBIAR CÓDIGO POR TOKEN ---
@@ -493,7 +519,7 @@
                 
                 if (data.access_token) {
                     accessToken = data.access_token;
-                    localStorage.setItem('spotify_access_token', accessToken);
+                    // NO guardamos el token en localStorage para forzar autenticación cada vez
                     
                     // Limpiar el code_verifier ya que no lo necesitamos más
                     localStorage.removeItem('code_verifier');
@@ -514,19 +540,6 @@
                 console.error('Error exchanging token:', error);
                 statusMsg.textContent = 'Error en la autenticación. Intenta de nuevo.';
                 statusMsg.className = 'error';
-            }
-        }
-
-        // --- VERIFICAR AUTENTICACIÓN EXISTENTE ---
-        function checkExistingAuth() {
-            const savedToken = localStorage.getItem('spotify_access_token');
-            if (savedToken) {
-                accessToken = savedToken;
-                authBtn.textContent = 'Autenticado ✓';
-                authBtn.disabled = true;
-                loadBtn.disabled = false;
-                statusMsg.textContent = 'Token recuperado. Carga tu playlist.';
-                statusMsg.className = 'success';
             }
         }
 
@@ -648,6 +661,9 @@
             // Mostrar pantalla de login
             loginScreen.classList.remove('hidden');
             
+            // Limpiar el campo de playlist
+            playlistInput.value = '';
+            
             // Restablecer el color de fondo
             document.body.style.backgroundColor = "#121212";
             
@@ -668,6 +684,11 @@
             }
 
             let pid = document.getElementById('playlistId').value.trim();
+
+            if (!pid) {
+                statusMsg.textContent = 'Por favor ingresa un link de playlist de Spotify.';
+                return;
+            }
 
             // Extraer ID de playlist
             if (pid.includes('spotify.com/playlist/')) {
@@ -790,7 +811,6 @@
             player.addListener('authentication_error', ({ message }) => {
                 console.error('Error de autenticación:', message);
                 statusMsg.textContent = "Error de autenticación. Vuelve a autenticarte.";
-                localStorage.removeItem('spotify_access_token');
             });
 
             player.addListener('account_error', ({ message }) => {
@@ -1036,98 +1056,4 @@
             if (fImg) {
                 ctx.save();
                 ctx.shadowColor = "#1db954";
-                ctx.shadowBlur = 20;
-                const pulse = 1 + Math.sin(Date.now() / 150) * 0.08;
-                const offset = (TILE * (1 - pulse)) / 2;
-                ctx.drawImage(fImg, food.x * TILE + offset, food.y * TILE + offset, TILE * pulse, TILE * pulse);
-                ctx.restore();
-            }
-
-            // Serpiente
-            for (let i = snake.length - 1; i >= 0; i--) {
-                const curr = snake[i];
-                const prev = prevSnake[i] || curr;
-
-                const vX = lerp(prev.x, curr.x, p) * TILE;
-                const vY = lerp(prev.y, curr.y, p) * TILE;
-
-                const img = tracks[curr.trackId].imgObj;
-                if (img) {
-                    ctx.drawImage(img, vX, vY, TILE, TILE);
-                    if (i > 0) {
-                        ctx.fillStyle = "rgba(0,0,0,0.3)";
-                        ctx.fillRect(vX, vY, TILE, TILE);
-                    }
-                }
-            }
-
-            // Flecha
-            if (snake.length > 0) {
-                const currHead = snake[0];
-                const prevHead = prevSnake[0] || currHead;
-
-                const hX = lerp(prevHead.x, currHead.x, p);
-                const hY = lerp(prevHead.y, currHead.y, p);
-
-                drawArrow(hX + dx, hY + dy, dx, dy);
-            }
-        }
-
-        function drawArrow(gridX, gridY, dirX, dirY) {
-            const cx = gridX * TILE + TILE / 2;
-            const cy = gridY * TILE + TILE / 2;
-            const size = TILE * 0.4;
-
-            ctx.save();
-            ctx.translate(cx, cy);
-
-            let angle = 0;
-            if (dirX === 1) angle = 0;
-            if (dirX === -1) angle = Math.PI;
-            if (dirY === 1) angle = Math.PI / 2;
-            if (dirY === -1) angle = -Math.PI / 2;
-            ctx.rotate(angle);
-
-            ctx.fillStyle = "white";
-            ctx.beginPath();
-            ctx.moveTo(size / 1.5, 0);
-            ctx.lineTo(-size / 2, -size / 2);
-            ctx.lineTo(-size / 2, size / 2);
-            ctx.closePath();
-            ctx.fill();
-            ctx.restore();
-        }
-
-        // Controles
-        document.addEventListener('keydown', e => {
-            const k = e.key.toLowerCase();
-            const code = e.keyCode;
-
-            if ((k === 'w' || code === 38) && dy === 0) { nextDx = 0; nextDy = -1; }
-            if ((k === 's' || code === 40) && dy === 0) { nextDx = 0; nextDy = 1; }
-            if ((k === 'a' || code === 37) && dx === 0) { nextDx = -1; nextDy = 0; }
-            if ((k === 'd' || code === 39) && dx === 0) { nextDx = 1; nextDy = 0; }
-        });
-
-        let tX, tY;
-        canvas.addEventListener('touchstart', e => { tX = e.touches[0].clientX; tY = e.touches[0].clientY; }, { passive: false });
-        canvas.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
-        canvas.addEventListener('touchend', e => {
-            const dX = e.changedTouches[0].clientX - tX;
-            const dY = e.changedTouches[0].clientY - tY;
-            if (Math.abs(dX) > Math.abs(dY)) {
-                if (Math.abs(dX) > 30) {
-                    if (dX > 0 && dx === 0) { nextDx = 1; nextDy = 0; }
-                    else if (dX < 0 && dx === 0) { nextDx = -1; nextDy = 0; }
-                }
-            } else {
-                if (Math.abs(dY) > 30) {
-                    if (dY > 0 && dy === 0) { nextDx = 0; nextDy = 1; }
-                    else if (dY < 0 && dy === 0) { nextDx = 0; nextDy = -1; }
-                }
-            }
-        });
-    </script>
-</body>
-
-</html>
+                ctx
